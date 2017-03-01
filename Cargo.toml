@@ -1,0 +1,6 @@
+[package]
+name = "iprange"
+version = "0.1.0"
+authors = ["Guy Taylor <thebigguy.co.uk@gmail.com>"]
+
+[dependencies]
