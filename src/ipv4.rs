@@ -1,182 +1,108 @@
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::Ipv4Addr;
 use std::result::Result;
 use std::result::Result::{Ok, Err};
-use std::option::Option::{None, Some};
 use std::str::FromStr;
 
 use iprange::{IpAddrRange, IpAddrRangeError};
-
-
-fn ipv4_to_u32(ip: &Ipv4Addr) -> u32 {
-    ip.octets().iter()
-        .rev()
-        .enumerate()
-        .fold(0, |acc, (count, bits)| {
-            acc | ((*bits as u32) << (count * 8))
-        })
-}
-
-fn number_of_common_prefix_bits(start: &Ipv4Addr, end: &Ipv4Addr) -> usize {
-    let ip1 = ipv4_to_u32(start);
-    let ip2 = ipv4_to_u32(end);
-    (ip1 ^ ip2).leading_zeros() as usize
-}
-
-fn number_of_common_postfix_bits(start: &Ipv4Addr, end: &Ipv4Addr) -> usize {
-    let ip1 = ipv4_to_u32(start);
-    let ip2 = ipv4_to_u32(end);
-    (ip1 ^ ip2).trailing_zeros() as usize
-}
-
-fn number_of_diff_postfix_bits(start: &Ipv4Addr, end: &Ipv4Addr) -> usize {
-    let ip1 = ipv4_to_u32(start);
-    let ip2 = ipv4_to_u32(end);
-    (!(ip1 ^ ip2)).trailing_zeros() as usize
-}
+use bits::{ipv4_to_u32, number_of_common_prefix_bits_u32, prefix_mask_u32};
 
 #[derive(Debug)]
 #[derive(PartialEq)]
 pub struct IpAddrRangeV4 {
-	address: Ipv4Addr,
-	mask: u8,
+    network_address: Ipv4Addr,
+    cidr: u8,
 }
 
 impl IpAddrRangeV4 {
-	pub fn new(address: Ipv4Addr, mask: u8) -> IpAddrRangeV4 {
-		assert!(mask <= 32);
-		IpAddrRangeV4 {
-			address: address,
-			mask: mask,
-		}
-	}
-
-	// TODO: work
-	pub fn from_range(start: Ipv4Addr, end: Ipv4Addr) -> Result<IpAddrRangeV4, IpAddrRangeError> {
-		if start == end {
-			return Ok(IpAddrRangeV4 {
-				address: start,
-				mask: 32,
-			});
-		}
-        let start_num = ipv4_to_u32(&start);
-        let end_num = ipv4_to_u32(&end);
-        if start_num > end_num {
-            panic!("Can not summarize_range start > end (s:{:?} e:{:?})", start, end);
+    /// Constructs a new `IpAddrRangeV4` using a `Ipv4Addr` and CIDR prefix.
+    pub fn new(network_address: Ipv4Addr, cidr: u8) -> IpAddrRangeV4 {
+        assert!(cidr <= 32);
+        IpAddrRangeV4 {
+            network_address: network_address,
+            cidr: cidr,
         }
-		unimplemented!();
-	}
+    }
 
-	pub fn address(&self) -> Ipv4Addr {
-		self.address
-	}
+    // TODO:
+    // * rfc3021
+    /// Constructs a new `IpAddrRangeV4` using a `Ipv4Addr` network and broadcast address.
+    pub fn from_range(network_address: Ipv4Addr,
+                      broadcast_address: Ipv4Addr)
+                      -> Result<IpAddrRangeV4, IpAddrRangeError> {
+        if network_address == broadcast_address {
+            return Ok(IpAddrRangeV4 {
+                          network_address: network_address,
+                          cidr: 32,
+                      });
+        }
+        let network = ipv4_to_u32(&network_address);
+        let broadcast = ipv4_to_u32(&broadcast_address);
+        let cidr = number_of_common_prefix_bits_u32(network, broadcast);
 
-	pub fn mask(&self) -> u8 {
-		self.mask
-	}
+        let net_mask = prefix_mask_u32(cidr);
+        let host_mask = !net_mask;
+
+        if (network & host_mask) != 0 {
+            return Err(IpAddrRangeError::InvalidNetworkAddress);
+        }
+        if broadcast != (network | host_mask) {
+            return Err(IpAddrRangeError::InvalidNetworkAddress);
+        }
+
+        Ok(IpAddrRangeV4 {
+               network_address: network_address,
+               cidr: cidr,
+           })
+    }
+
+    pub fn network_address(&self) -> Ipv4Addr {
+        self.network_address
+    }
+
+    pub fn cidr(&self) -> u8 {
+        self.cidr
+    }
 }
 
 impl ToString for IpAddrRangeV4 {
     fn to_string(&self) -> String {
-    	format!("{}/{}", self.address, self.mask)
+        format!("{}/{}", self.network_address, self.cidr)
     }
 }
 
 impl FromStr for IpAddrRangeV4 {
-	type Err = IpAddrRangeError;
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let split_point = s.find('/').ok_or(IpAddrRangeError::ParseError)?;
-		let (address_str, _) = s.split_at(split_point);
-		let (_, mask_str) = s.split_at(split_point + 1);
-		let address = Ipv4Addr::from_str(address_str).map_err(|_| IpAddrRangeError::ParseError)?;
-		let mask = u8::from_str(mask_str).map_err(|_| IpAddrRangeError::ParseError)?;
-		Ok(IpAddrRangeV4::new(address, mask))
-	}
+    type Err = IpAddrRangeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let split_point = s.find('/').ok_or(IpAddrRangeError::ParseError)?;
+        let (address_str, _) = s.split_at(split_point);
+        let (_, mask_str) = s.split_at(split_point + 1);
+        let network_address = Ipv4Addr::from_str(address_str)?;
+        let cidr = u8::from_str(mask_str)?;
+        Ok(IpAddrRangeV4::new(network_address, cidr))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-	use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-	use std::str::FromStr;
+    extern crate env_logger;
 
-	use super::*;
+    use std::net::{IpAddr, Ipv4Addr};
+    use std::str::FromStr;
+
+    use super::*;
 
     fn ipv4(s: &str) -> Ipv4Addr {
         Ipv4Addr::from_str(s).unwrap()
     }
 
     #[test]
-    fn ipv4_to_u32_zero() {
-        let ip = ipv4("0.0.0.0");
-        assert_eq!(ipv4_to_u32(&ip), 0x000000);
-    }
-
-    #[test]
-    fn ipv4_to_u32_le_be() {
-        let ip1 = ipv4("0.0.255.255");
-        assert_eq!(ipv4_to_u32(&ip1), 0x0000ffff);
-        let ip2 = ipv4("255.255.0.0");
-        assert_eq!(ipv4_to_u32(&ip2), 0xffff0000);
-    }
-
-    #[test]
-    fn ipv4_to_u32_ff() {
-        let ip = ipv4("255.255.255.255");
-        assert_eq!(ipv4_to_u32(&ip), 0xffffffff);
-    }
-
-    #[test]
-    fn ipv4_to_u32_localhost() {
-        let ip = ipv4("127.0.0.1");
-        assert_eq!(ipv4_to_u32(&ip), 0x7f000001);
-    }
-
-    #[test]
-    fn number_of_common_diff_pre_postfix_bits_same_address() {
-        let ip = ipv4("0.0.0.0");
-        assert_eq!(number_of_common_prefix_bits(&ip, &ip), 32);
-        assert_eq!(number_of_common_postfix_bits(&ip, &ip), 32);
-
-        assert_eq!(number_of_diff_postfix_bits(&ip, &ip), 0);
-    }
-
-    #[test]
-    fn number_of_common_diff_pre_postfix_bits_no_common_prefix() {
-        let ip1 = ipv4("0.0.0.0");
-        let ip2 = ipv4("255.255.255.255");
-        assert_eq!(number_of_common_prefix_bits(&ip1, &ip2), 0);
-        assert_eq!(number_of_common_postfix_bits(&ip1, &ip2), 0);
-
-        assert_eq!(number_of_diff_postfix_bits(&ip1, &ip2), 32);
-    }
-
-    #[test]
-    fn number_of_common_diff_pre_postfix_bits_first() {
-        let ip1 = ipv4("127.255.255.255");
-        let ip2 = ipv4("255.255.255.255");
-        assert_eq!(number_of_common_prefix_bits(&ip1, &ip2), 0);
-        assert_eq!(number_of_common_postfix_bits(&ip1, &ip2), 31);
-
-        assert_eq!(number_of_diff_postfix_bits(&ip1, &ip2), 0);
-    }
-
-        #[test]
-    fn number_of_common_diff_pre_postfix_bits_last() {
-        let ip1 = ipv4("0.0.0.0");
-        let ip2 = ipv4("0.0.0.1");
-        assert_eq!(number_of_common_prefix_bits(&ip1, &ip2), 31);
-        assert_eq!(number_of_common_postfix_bits(&ip1, &ip2), 0);
-
-        assert_eq!(number_of_diff_postfix_bits(&ip1, &ip2), 1);
-    }
-
-        #[test]
-    fn number_of_common_diff_pre_postfix_bits_mid() {
-        let ip1 = ipv4("192.168.1.0");
-        let ip2 = ipv4("192.168.2.0");
-        assert_eq!(number_of_common_prefix_bits(&ip1, &ip2), 22);
-        assert_eq!(number_of_common_postfix_bits(&ip1, &ip2), 8);
-
-        assert_eq!(number_of_diff_postfix_bits(&ip1, &ip2), 0);
+    fn from_range_error_start_after_end() {
+        let ip1 = ipv4("127.0.0.2");
+        let ip2 = ipv4("127.0.0.1");
+        let result = IpAddrRange::from_range(IpAddr::V4(ip1), IpAddr::V4(ip2));
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error, IpAddrRangeError::InvalidNetworkAddress);
     }
 
     #[test]
@@ -189,23 +115,25 @@ mod tests {
         match range {
             IpAddrRange::V4(range_v4) => {
                 assert_eq!(range_v4.to_string(), String::from("127.0.0.1/32"));
-            },
+            }
             _ => assert!(false),
         }
     }
 
-	#[test]
-	fn from_range_simple_netmask() {
-		let ip1 = ipv4("127.0.0.0");
-		let ip2 = ipv4("127.0.0.255");
-		let result = IpAddrRange::from_range(IpAddr::V4(ip1), IpAddr::V4(ip2));
-		assert!(result.is_ok());
-		let range = result.unwrap();
-		match range {
-		    IpAddrRange::V4(range_v4) => {
-		    	assert_eq!(range_v4.to_string(), String::from("127.0.0.0/24"));
-		    },
-		    _ => assert!(false),
-		}
-	}
+    #[test]
+    fn from_range_simple_netmask() {
+        let _ = env_logger::init();
+
+        let ip1 = ipv4("127.0.0.0");
+        let ip2 = ipv4("127.0.0.255");
+        let result = IpAddrRange::from_range(IpAddr::V4(ip1), IpAddr::V4(ip2));
+        assert!(result.is_ok());
+        let range = result.unwrap();
+        match range {
+            IpAddrRange::V4(range_v4) => {
+                assert_eq!(range_v4.to_string(), String::from("127.0.0.0/24"));
+            }
+            _ => assert!(false),
+        }
+    }
 }

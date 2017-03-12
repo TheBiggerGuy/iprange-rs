@@ -1,58 +1,78 @@
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::Ipv6Addr;
 use std::result::Result;
-use std::result::Result::{Ok, Err};
-use std::option::Option::{None, Some};
-use std::str::FromStr;
+use std::result::Result::Ok;
 
 use iprange::{IpAddrRange, IpAddrRangeError};
+use bits::{ipv6_to_u128, number_of_common_prefix_bits_u128, prefix_mask_u128};
 
 #[derive(Debug)]
 pub struct IpAddrRangeV6 {
-	address: Ipv6Addr,
-	mask: u8,
+    network_address: Ipv6Addr,
+    cidr: u8,
 }
 
 impl IpAddrRangeV6 {
-	pub fn new(address: Ipv6Addr, mask: u8) -> IpAddrRangeV6 {
-		assert!(mask <= 128);
-		IpAddrRangeV6 {
-			address: address,
-			mask: mask,
-		}
-	}
+    /// Constructs a new `IpAddrRangeV4` using a `Ipv4Addr` and CIDR prefix.
+    pub fn new(network_address: Ipv6Addr, cidr: u8) -> IpAddrRangeV6 {
+        assert!(cidr <= 128);
+        IpAddrRangeV6 {
+            network_address: network_address,
+            cidr: cidr,
+        }
+    }
 
-	// TODO: work
-	pub fn from_range(start: Ipv6Addr, end: Ipv6Addr) -> Result<IpAddrRangeV6, IpAddrRangeError> {
-		if start == end {
-			return Ok(IpAddrRangeV6 {
-				address: start,
-				mask: 128,
-			});
-		}
-		unimplemented!();
-	}
+    // TODO:
+    /// Constructs a new `IpAddrRangeV6` using a `Ipv6Addr` network and broadcast address.
+    pub fn from_range(network_address: Ipv6Addr,
+                      broadcast_address: Ipv6Addr)
+                      -> Result<IpAddrRangeV6, IpAddrRangeError> {
+        if network_address == broadcast_address {
+            return Ok(IpAddrRangeV6 {
+                          network_address: network_address,
+                          cidr: 128,
+                      });
+        }
+        let network = ipv6_to_u128(&network_address);
+        let broadcast = ipv6_to_u128(&broadcast_address);
+        let cidr = number_of_common_prefix_bits_u128(network, broadcast);
 
-	pub fn address(&self) -> Ipv6Addr {
-		self.address
-	}
+        let net_mask = prefix_mask_u128(cidr);
+        let host_mask = !net_mask;
 
-	pub fn mask(&self) -> u8 {
-		self.mask
-	}
+        if (network & host_mask) != 0 {
+            return Err(IpAddrRangeError::InvalidNetworkAddress);
+        }
+        if broadcast != (network | host_mask) {
+            return Err(IpAddrRangeError::InvalidNetworkAddress);
+        }
+
+        Ok(IpAddrRangeV6 {
+               network_address: network_address,
+               cidr: cidr,
+           })
+    }
+
+    pub fn network_address(&self) -> Ipv6Addr {
+        self.network_address
+    }
+
+    pub fn cidr(&self) -> u8 {
+        self.cidr
+    }
 }
 
 impl ToString for IpAddrRangeV6 {
     fn to_string(&self) -> String {
-    	format!("{}/{}", self.address, self.mask)
+        format!("{}/{}", self.network_address, self.cidr())
     }
 }
 
 #[cfg(test)]
 mod tests {
-	use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-	use std::str::FromStr;
+    use std::net::{IpAddr, Ipv6Addr};
+    use std::str::FromStr;
 
-	use super::*;
+    use super::*;
 
     #[test]
     fn from_range_same_address() {
@@ -64,7 +84,7 @@ mod tests {
         match range {
             IpAddrRange::V6(range_v6) => {
                 assert_eq!(range_v6.to_string(), String::from("::1/128"));
-            },
+            }
             _ => assert!(false),
         }
     }
@@ -72,14 +92,14 @@ mod tests {
     #[test]
     fn from_range_simple_netmask() {
         let ip1 = Ipv6Addr::from_str("::0").unwrap();
-        let ip2 = Ipv6Addr::from_str("::ff").unwrap();
+        let ip2 = Ipv6Addr::from_str("::ffff").unwrap();
         let result = IpAddrRange::from_range(IpAddr::V6(ip1), IpAddr::V6(ip2));
         assert!(result.is_ok());
         let range = result.unwrap();
         match range {
             IpAddrRange::V6(range_v6) => {
-                assert_eq!(range_v6.to_string(), String::from("::0/112"));
-            },
+                assert_eq!(range_v6.to_string(), String::from("::/112"));
+            }
             _ => assert!(false),
         }
     }
