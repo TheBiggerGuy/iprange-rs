@@ -1,5 +1,4 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::ops::BitXor;
 
 pub fn ipv4_to_u32(ip: &Ipv4Addr) -> u32 {
     ip.octets()
@@ -89,7 +88,7 @@ pub fn postfix_mask_u128(trailing_zeros: u8) -> u128 {
 mod tests {
     extern crate env_logger;
 
-    use std::net::{IpAddr, Ipv4Addr};
+    use std::net::{Ipv4Addr, Ipv6Addr};
     use std::str::FromStr;
 
     use super::*;

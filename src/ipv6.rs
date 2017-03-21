@@ -1,3 +1,4 @@
+use std::fmt;
 use std::net::Ipv6Addr;
 use std::result::Result;
 use std::result::Result::Ok;
@@ -5,7 +6,7 @@ use std::result::Result::Ok;
 use iprange::{IpAddrRange, IpAddrRangeError};
 use bits::{ipv6_to_u128, number_of_common_prefix_bits_u128, prefix_mask_u128};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct IpAddrRangeV6 {
     network_address: Ipv6Addr,
     cidr: u8,
@@ -61,9 +62,17 @@ impl IpAddrRangeV6 {
     }
 }
 
+/*
 impl ToString for IpAddrRangeV6 {
     fn to_string(&self) -> String {
         format!("{}/{}", self.network_address, self.cidr())
+    }
+}
+*/
+
+impl fmt::Display for IpAddrRangeV6 {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}/{}", self.network_address, self.cidr)
     }
 }
 
@@ -102,5 +111,12 @@ mod tests {
             }
             _ => assert!(false),
         }
+    }
+
+    #[test]
+    fn to_string() {
+        let range = IpAddrRangeV6::new(Ipv6Addr::from_str("::1").unwrap(), 24);
+        
+        assert_eq!(range.to_string(), "::1/24");
     }
 }

@@ -1,3 +1,4 @@
+use std::fmt;
 use std::net::Ipv4Addr;
 use std::result::Result;
 use std::result::Result::{Ok, Err};
@@ -6,8 +7,7 @@ use std::str::FromStr;
 use iprange::{IpAddrRange, IpAddrRangeError};
 use bits::{ipv4_to_u32, number_of_common_prefix_bits_u32, prefix_mask_u32};
 
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct IpAddrRangeV4 {
     network_address: Ipv4Addr,
     cidr: u8,
@@ -64,9 +64,17 @@ impl IpAddrRangeV4 {
     }
 }
 
+/*
 impl ToString for IpAddrRangeV4 {
     fn to_string(&self) -> String {
         format!("{}/{}", self.network_address, self.cidr)
+    }
+}
+*/
+
+impl fmt::Display for IpAddrRangeV4 {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}/{}", self.network_address, self.cidr)
     }
 }
 
@@ -135,5 +143,12 @@ mod tests {
             }
             _ => assert!(false),
         }
+    }
+
+    #[test]
+    fn to_string() {
+        let range = IpAddrRangeV4::new(Ipv4Addr::from_str("127.0.0.1").unwrap(), 24);
+        
+        assert_eq!(range.to_string(), "127.0.0.1/24");
     }
 }
