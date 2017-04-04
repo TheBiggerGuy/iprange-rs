@@ -64,14 +64,6 @@ impl IpAddrRangeV4 {
     }
 }
 
-/*
-impl ToString for IpAddrRangeV4 {
-    fn to_string(&self) -> String {
-        format!("{}/{}", self.network_address, self.cidr)
-    }
-}
-*/
-
 impl fmt::Display for IpAddrRangeV4 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "{}/{}", self.network_address, self.cidr)
