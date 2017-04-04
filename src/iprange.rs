@@ -193,7 +193,7 @@ mod tests {
     fn to_string_v4() {
         let range_v4 = IpAddrRangeV4::new(Ipv4Addr::from_str("127.0.0.1").unwrap(), 24);
         let range = IpAddrRange::V4(range_v4.clone());
-        
+
         assert_eq!(range.to_string(), range_v4.to_string());
     }
 
@@ -201,7 +201,7 @@ mod tests {
     fn to_string_v6() {
         let range_v6 = IpAddrRangeV6::new(Ipv6Addr::from_str("::1").unwrap(), 24);
         let range = IpAddrRange::V6(range_v6.clone());
-        
+
         assert_eq!(range.to_string(), range_v6.to_string());
     }
 

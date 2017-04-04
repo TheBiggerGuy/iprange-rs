@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn to_string() {
         let range = IpAddrRangeV6::new(Ipv6Addr::from_str("::1").unwrap(), 24);
-        
+
         assert_eq!(range.to_string(), "::1/24");
     }
 }

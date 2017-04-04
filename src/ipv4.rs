@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn to_string() {
         let range = IpAddrRangeV4::new(Ipv4Addr::from_str("127.0.0.1").unwrap(), 24);
-        
+
         assert_eq!(range.to_string(), "127.0.0.1/24");
     }
 }
