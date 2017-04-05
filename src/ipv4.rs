@@ -1,7 +1,6 @@
 use std::fmt;
 use std::net::Ipv4Addr;
-use std::result::Result;
-use std::result::Result::{Ok, Err};
+use std::result::Result::{self, Ok, Err};
 use std::str::FromStr;
 
 use iprange::{IpAddrRange, IpAddrRangeError};
