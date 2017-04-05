@@ -124,6 +124,7 @@ mod tests {
         assert_eq!(range_from_str, Err(IpAddrRangeError::ParseError));
     }
 
+    #[test]
     fn ip_addr_range_from_str_missing_address() {
         let range_from_str = IpAddrRangeV4::from_str("/32");
         assert_eq!(range_from_str, Err(IpAddrRangeError::ParseError));

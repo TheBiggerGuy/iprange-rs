@@ -28,26 +28,6 @@ pub fn number_of_common_prefix_bits_u128(a: u128, b: u128) -> u8 {
     (a ^ b).leading_zeros() as u8
 }
 
-#[inline]
-fn number_of_common_postfix_bits_u32(a: u32, b: u32) -> u8 {
-    (a ^ b).trailing_zeros() as u8
-}
-
-#[inline]
-fn number_of_common_postfix_bits_u128(a: u128, b: u128) -> u8 {
-    (a ^ b).trailing_zeros() as u8
-}
-
-#[inline]
-fn number_of_diff_postfix_bits_u32(a: u32, b: u32) -> u8 {
-    (!(a ^ b)).trailing_zeros() as u8
-}
-
-#[inline]
-fn number_of_diff_postfix_bits_u128(a: u128, b: u128) -> u8 {
-    (!(a ^ b)).trailing_zeros() as u8
-}
-
 pub fn prefix_mask_u32(leading_zeros: u8) -> u32 {
     assert!(leading_zeros <= 32);
     let mut mask: u32 = 0;
@@ -61,24 +41,6 @@ pub fn prefix_mask_u128(leading_zeros: u8) -> u128 {
     assert!(leading_zeros <= 128);
     let mut mask: u128 = 0;
     for i in (128 - leading_zeros)..128 {
-        mask |= 1 << i;
-    }
-    mask
-}
-
-pub fn postfix_mask_u32(trailing_zeros: u8) -> u32 {
-    assert!(trailing_zeros <= 32);
-    let mut mask: u32 = 0;
-    for i in 0..trailing_zeros {
-        mask |= 1 << i;
-    }
-    mask
-}
-
-pub fn postfix_mask_u128(trailing_zeros: u8) -> u128 {
-    assert!(trailing_zeros <= 128);
-    let mut mask: u128 = 0;
-    for i in 0..trailing_zeros {
         mask |= 1 << i;
     }
     mask
@@ -99,10 +61,6 @@ mod tests {
 
     fn ipv6(s: &str) -> Ipv6Addr {
         Ipv6Addr::from_str(s).unwrap()
-    }
-
-    fn ipv4_bits(s: &str) -> u32 {
-        ipv4_to_u32(&ipv4(s))
     }
 
     #[test]
@@ -158,56 +116,6 @@ mod tests {
         assert_eq!(ipv6_to_u128(&ip), 0x0000_0000_0000_0000_0000_0000_0000_0001);
     }
 
-
-    #[test]
-    fn number_of_common_diff_pre_postfix_bits_same_address() {
-        let ip = ipv4_bits("0.0.0.0");
-        assert_eq!(number_of_common_prefix_bits_u32(ip, ip), 32);
-        assert_eq!(number_of_common_postfix_bits_u32(ip, ip), 32);
-
-        assert_eq!(number_of_diff_postfix_bits_u32(ip, ip), 0);
-    }
-
-    #[test]
-    fn number_of_common_diff_pre_postfix_bits_no_common_prefix() {
-        let ip1 = ipv4_bits("0.0.0.0");
-        let ip2 = ipv4_bits("255.255.255.255");
-        assert_eq!(number_of_common_prefix_bits_u32(ip1, ip2), 0);
-        assert_eq!(number_of_common_postfix_bits_u32(ip1, ip2), 0);
-
-        assert_eq!(number_of_diff_postfix_bits_u32(ip1, ip2), 32);
-    }
-
-    #[test]
-    fn number_of_common_diff_pre_postfix_bits_first() {
-        let ip1 = ipv4_bits("127.255.255.255");
-        let ip2 = ipv4_bits("255.255.255.255");
-        assert_eq!(number_of_common_prefix_bits_u32(ip1, ip2), 0);
-        assert_eq!(number_of_common_postfix_bits_u32(ip1, ip2), 31);
-
-        assert_eq!(number_of_diff_postfix_bits_u32(ip1, ip2), 0);
-    }
-
-    #[test]
-    fn number_of_common_diff_pre_postfix_bits_last() {
-        let ip1 = ipv4_bits("0.0.0.0");
-        let ip2 = ipv4_bits("0.0.0.1");
-        assert_eq!(number_of_common_prefix_bits_u32(ip1, ip2), 31);
-        assert_eq!(number_of_common_postfix_bits_u32(ip1, ip2), 0);
-
-        assert_eq!(number_of_diff_postfix_bits_u32(ip1, ip2), 1);
-    }
-
-    #[test]
-    fn number_of_common_diff_pre_postfix_bits_mid() {
-        let ip1 = ipv4_bits("192.168.1.0");
-        let ip2 = ipv4_bits("192.168.2.0");
-        assert_eq!(number_of_common_prefix_bits_u32(ip1, ip2), 22);
-        assert_eq!(number_of_common_postfix_bits_u32(ip1, ip2), 8);
-
-        assert_eq!(number_of_diff_postfix_bits_u32(ip1, ip2), 0);
-    }
-
     #[test]
     fn prefix_mask_u32_test() {
         assert_eq!(prefix_mask_u32(0),  0b00000000_00000000_00000000_00000000);
@@ -215,14 +123,5 @@ mod tests {
         assert_eq!(prefix_mask_u32(16), 0b11111111_11111111_00000000_00000000);
         assert_eq!(prefix_mask_u32(31), 0b11111111_11111111_11111111_11111110);
         assert_eq!(prefix_mask_u32(32), 0b11111111_11111111_11111111_11111111);
-    }
-
-    #[test]
-    fn postfix_mask_u32_test() {
-        assert_eq!(postfix_mask_u32(0),  0b00000000_00000000_00000000_00000000);
-        assert_eq!(postfix_mask_u32(1),  0b00000000_00000000_00000000_00000001);
-        assert_eq!(postfix_mask_u32(16), 0b00000000_00000000_11111111_11111111);
-        assert_eq!(postfix_mask_u32(31), 0b01111111_11111111_11111111_11111111);
-        assert_eq!(postfix_mask_u32(32), 0b11111111_11111111_11111111_11111111);
     }
 }

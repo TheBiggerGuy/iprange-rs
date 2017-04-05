@@ -3,7 +3,7 @@ use std::net::Ipv6Addr;
 use std::result::Result::{self, Ok, Err};
 use std::str::FromStr;
 
-use iprange::{IpAddrRange, IpAddrRangeError};
+use iprange::IpAddrRangeError;
 use bits::{ipv6_to_u128, number_of_common_prefix_bits_u128, prefix_mask_u128};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -87,6 +87,8 @@ impl FromStr for IpAddrRangeV6 {
 mod tests {
     use std::net::{IpAddr, Ipv6Addr};
     use std::str::FromStr;
+
+    use iprange::IpAddrRange;
 
     use super::*;
 

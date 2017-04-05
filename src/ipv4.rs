@@ -3,7 +3,7 @@ use std::net::Ipv4Addr;
 use std::result::Result::{self, Ok, Err};
 use std::str::FromStr;
 
-use iprange::{IpAddrRange, IpAddrRangeError};
+use iprange::IpAddrRangeError;
 use bits::{ipv4_to_u32, number_of_common_prefix_bits_u32, prefix_mask_u32};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -90,6 +90,8 @@ mod tests {
 
     use std::net::{IpAddr, Ipv4Addr};
     use std::str::FromStr;
+
+    use iprange::IpAddrRange;
 
     use super::*;
 
