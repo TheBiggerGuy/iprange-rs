@@ -78,6 +78,9 @@ impl FromStr for IpAddrRangeV4 {
         let (_, mask_str) = s.split_at(split_point + 1);
         let network_address = Ipv4Addr::from_str(address_str)?;
         let cidr = u8::from_str(mask_str)?;
+        if cidr > 32 {
+            return Err(IpAddrRangeError::ParseError);
+        }
         Ok(IpAddrRangeV4::new(network_address, cidr))
     }
 }
@@ -142,5 +145,61 @@ mod tests {
         let range = IpAddrRangeV4::new(Ipv4Addr::from_str("127.0.0.1").unwrap(), 24);
 
         assert_eq!(range.to_string(), "127.0.0.1/24");
+    }
+
+    #[test]
+    fn from_str_valid() {
+        let from_str = IpAddrRangeV4::from_str("127.0.0.1/24").unwrap();
+        let from_ints = IpAddrRangeV4::new(Ipv4Addr::new(127, 0, 0, 1), 24);
+
+        assert_eq!(from_str, from_ints);
+    }
+
+    #[test]
+    fn from_str_invalid_trailing_slash() {
+        let from_str = IpAddrRangeV4::from_str("127.0.0.1/");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_leading_slash() {
+        let from_str = IpAddrRangeV4::from_str("/24");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_missing_cidr() {
+        let from_str = IpAddrRangeV4::from_str("127.0.0.1");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_missing_ip() {
+        let from_str = IpAddrRangeV4::from_str("24");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_multiple_slashes() {
+        let from_str = IpAddrRangeV4::from_str("127.0.0.1/24/");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_ip() {
+        let from_str = IpAddrRangeV4::from_str("256.0.0.1/24");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_cidr() {
+        let from_str = IpAddrRangeV4::from_str("127.0.0.1/33");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_empty_str() {
+        let from_str = IpAddrRangeV4::from_str("");
+        assert!(from_str.is_err());
     }
 }
