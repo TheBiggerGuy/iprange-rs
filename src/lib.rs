@@ -1,6 +1,8 @@
 #![feature(i128_type)]
+#![feature(test)]
 
 extern crate log;
+    extern crate test;
 
 mod iprange;
 pub use iprange::{IpAddrRange, IpAddrRangeError};

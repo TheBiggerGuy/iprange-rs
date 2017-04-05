@@ -1,3 +1,5 @@
+extern crate test;
+
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 pub fn ipv4_to_u32(ip: &Ipv4Addr) -> u32 {
@@ -10,12 +12,12 @@ pub fn ipv4_to_u32(ip: &Ipv4Addr) -> u32 {
 }
 
 pub fn ipv6_to_u128(ip: &Ipv6Addr) -> u128 {
-    ip.segments()
+    ip.octets()
         .iter()
         .rev()
         .enumerate()
         .fold(0u128,
-              |acc, (count, bits)| acc | ((*bits as u128) << (count * 16)))
+              |acc, (count, bits)| acc | ((*bits as u128) << (count * 8)))
 }
 
 #[inline]
@@ -52,6 +54,8 @@ mod tests {
 
     use std::net::{Ipv4Addr, Ipv6Addr};
     use std::str::FromStr;
+
+    use test::Bencher;
 
     use super::*;
 
@@ -123,5 +127,17 @@ mod tests {
         assert_eq!(prefix_mask_u32(16), 0b11111111_11111111_00000000_00000000);
         assert_eq!(prefix_mask_u32(31), 0b11111111_11111111_11111111_11111110);
         assert_eq!(prefix_mask_u32(32), 0b11111111_11111111_11111111_11111111);
+    }
+
+    #[bench]
+    fn bench_ipv4_to_u32(b: &mut Bencher) {
+        let ip = ipv4("127.0.0.1");
+        b.iter(|| ipv4_to_u32(&ip));
+    }
+
+    #[bench]
+    fn bench_ipv6_to_u128(b: &mut Bencher) {
+        let ip = ipv6("2001::1");
+        b.iter(|| ipv6_to_u128(&ip));
     }
 }
