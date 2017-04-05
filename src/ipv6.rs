@@ -2,6 +2,7 @@ use std::fmt;
 use std::net::Ipv6Addr;
 use std::result::Result;
 use std::result::Result::Ok;
+use std::str::FromStr;
 
 use iprange::{IpAddrRange, IpAddrRangeError};
 use bits::{ipv6_to_u128, number_of_common_prefix_bits_u128, prefix_mask_u128};
@@ -13,7 +14,7 @@ pub struct IpAddrRangeV6 {
 }
 
 impl IpAddrRangeV6 {
-    /// Constructs a new `IpAddrRangeV4` using a `Ipv4Addr` and CIDR prefix.
+    /// Constructs a new `IpAddrRangeV6` using a `Ipv6Addr` and CIDR prefix.
     pub fn new(network_address: Ipv6Addr, cidr: u8) -> IpAddrRangeV6 {
         assert!(cidr <= 128);
         IpAddrRangeV6 {
@@ -68,6 +69,21 @@ impl fmt::Display for IpAddrRangeV6 {
     }
 }
 
+impl FromStr for IpAddrRangeV6 {
+    type Err = IpAddrRangeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let split_point = s.find('/').ok_or(IpAddrRangeError::ParseError)?;
+        let (address_str, _) = s.split_at(split_point);
+        let (_, mask_str) = s.split_at(split_point + 1);
+        let network_address = Ipv6Addr::from_str(address_str)?;
+        let cidr = u8::from_str(mask_str)?;
+        if cidr > 128 {
+            return Err(IpAddrRangeError::ParseError);
+        }
+        Ok(IpAddrRangeV6::new(network_address, cidr))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::net::{IpAddr, Ipv6Addr};
@@ -110,5 +126,61 @@ mod tests {
         let range = IpAddrRangeV6::new(Ipv6Addr::from_str("::1").unwrap(), 24);
 
         assert_eq!(range.to_string(), "::1/24");
+    }
+
+    #[test]
+    fn from_str_valid() {
+        let from_str = IpAddrRangeV6::from_str("::1/24").unwrap();
+        let from_ints = IpAddrRangeV6::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1), 24);
+
+        assert_eq!(from_str, from_ints);
+    }
+
+    #[test]
+    fn from_str_invalid_trailing_slash() {
+        let from_str = IpAddrRangeV6::from_str("::1/");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_leading_slash() {
+        let from_str = IpAddrRangeV6::from_str("/24");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_missing_cidr() {
+        let from_str = IpAddrRangeV6::from_str("::1");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_missing_ip() {
+        let from_str = IpAddrRangeV6::from_str("24");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_multiple_slashes() {
+        let from_str = IpAddrRangeV6::from_str("::1/24/");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_ip() {
+        let from_str = IpAddrRangeV6::from_str("abs/24");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_cidr() {
+        let from_str = IpAddrRangeV6::from_str("::1/129");
+        assert!(from_str.is_err());
+    }
+
+    #[test]
+    fn from_str_invalid_empty_str() {
+        let from_str = IpAddrRangeV6::from_str("");
+        assert!(from_str.is_err());
     }
 }
