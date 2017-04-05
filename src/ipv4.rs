@@ -72,14 +72,17 @@ impl fmt::Display for IpAddrRangeV4 {
 impl FromStr for IpAddrRangeV4 {
     type Err = IpAddrRangeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let split_point = s.rfind('/').ok_or(IpAddrRangeError::ParseError)?;
+        let split_point = s.rfind('/').ok_or(IpAddrRangeError::IpAddrRangeParseError)?;
         let address_str = &s[..split_point];
         let mask_str = &s[split_point + 1..];
+        if address_str.len() == 0 || mask_str.len() == 0 {
+            return Err(IpAddrRangeError::IpAddrRangeParseError);
+        }
 
         let network_address = Ipv4Addr::from_str(address_str)?;
         let cidr = u8::from_str(mask_str)?;
         if cidr > 32 {
-            return Err(IpAddrRangeError::ParseError);
+            return Err(IpAddrRangeError::InvalidCidr(cidr));
         }
 
         Ok(IpAddrRangeV4::new(network_address, cidr))
@@ -92,6 +95,7 @@ mod tests {
 
     use std::net::{IpAddr, Ipv4Addr};
     use std::str::FromStr;
+    use std::error::Error;
 
     use test::Bencher;
 
@@ -194,6 +198,12 @@ mod tests {
     fn from_str_invalid_ip() {
         let from_str = IpAddrRangeV4::from_str("256.0.0.1/24");
         assert!(from_str.is_err());
+        let error = from_str.unwrap_err();
+        match error {
+            IpAddrRangeError::IpAddrParseError(_) => {}
+            _ => assert!(false),
+        }
+        assert!(error.cause().is_some());
     }
 
     #[test]
@@ -206,6 +216,8 @@ mod tests {
     fn from_str_invalid_empty_str() {
         let from_str = IpAddrRangeV4::from_str("");
         assert!(from_str.is_err());
+        let error = from_str.unwrap_err();
+        assert_eq!(error, IpAddrRangeError::IpAddrRangeParseError);
     }
 
     #[bench]

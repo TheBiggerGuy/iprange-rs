@@ -3,26 +3,57 @@ use std::net::{IpAddr, AddrParseError};
 use std::result::Result::{self, Ok, Err};
 use std::num::ParseIntError;
 use std::str::FromStr;
+use std::error::Error;
 
 use ipv4::IpAddrRangeV4;
 use ipv6::IpAddrRangeV6;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum IpAddrRangeError {
     MixedIpVersions,
-    ParseError,
+    IpAddrParseError(AddrParseError),
+    CidrParseError(ParseIntError),
+    IpAddrRangeParseError,
+    InvalidCidr(u8),
     InvalidNetworkAddress,
 }
 
+impl fmt::Display for IpAddrRangeError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.description())
+    }
+}
+
+impl Error for IpAddrRangeError {
+    fn description(&self) -> &str {
+        match *self {
+            IpAddrRangeError::MixedIpVersions => "Mixed IP Versions",
+            IpAddrRangeError::IpAddrParseError(_) => "Error parsing IP addresses range",
+            IpAddrRangeError::CidrParseError(_) => "Error parsing IP addresses range",
+            IpAddrRangeError::IpAddrRangeParseError => "Error parsing IP addresses range",
+            IpAddrRangeError::InvalidCidr(_) => "Invalid CIDR",
+            IpAddrRangeError::InvalidNetworkAddress => "Invalid IP address to use for range",
+        }
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        match *self {
+            IpAddrRangeError::IpAddrParseError(ref err) => Some(err as &Error),
+            IpAddrRangeError::CidrParseError(ref err) => Some(err as &Error),
+            _ => None,
+        }
+    }
+}
+
 impl From<AddrParseError> for IpAddrRangeError {
-    fn from(_: AddrParseError) -> IpAddrRangeError {
-        IpAddrRangeError::ParseError
+    fn from(err: AddrParseError) -> IpAddrRangeError {
+        IpAddrRangeError::IpAddrParseError(err)
     }
 }
 
 impl From<ParseIntError> for IpAddrRangeError {
-    fn from(_: ParseIntError) -> IpAddrRangeError {
-        IpAddrRangeError::ParseError
+    fn from(err: ParseIntError) -> IpAddrRangeError {
+        IpAddrRangeError::CidrParseError(err)
     }
 }
 
@@ -72,9 +103,12 @@ impl fmt::Display for IpAddrRange {
 impl FromStr for IpAddrRange {
     type Err = IpAddrRangeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let split_point = s.rfind('/').ok_or(IpAddrRangeError::ParseError)?;
+        let split_point = s.rfind('/').ok_or(IpAddrRangeError::IpAddrRangeParseError)?;
         let address_str = &s[..split_point];
         let mask_str = &s[split_point + 1..];
+        if address_str.len() == 0 || mask_str.len() == 0 {
+            return Err(IpAddrRangeError::IpAddrRangeParseError);
+        }
 
         let network_address = IpAddr::from_str(address_str)?;
         let cidr = u8::from_str(mask_str)?;
@@ -83,7 +117,7 @@ impl FromStr for IpAddrRange {
             IpAddr::V6(_) => 128,
         };
         if cidr > max_cidr {
-            return Err(IpAddrRangeError::ParseError);
+            return Err(IpAddrRangeError::InvalidCidr(cidr));
         }
         let range = match network_address {
             IpAddr::V4(ipv4) => IpAddrRange::V4(IpAddrRangeV4::new(ipv4, cidr)),
@@ -113,25 +147,25 @@ mod tests {
     #[test]
     fn ip_addr_range_from_str_empty() {
         let range_from_str = IpAddrRangeV4::from_str("");
-        assert_eq!(range_from_str, Err(IpAddrRangeError::ParseError));
+        assert_eq!(range_from_str, Err(IpAddrRangeError::IpAddrRangeParseError));
     }
 
     #[test]
     fn ip_addr_range_from_str_missing_mask() {
         let range_from_str = IpAddrRangeV4::from_str("127.0.0.1/");
-        assert_eq!(range_from_str, Err(IpAddrRangeError::ParseError));
+        assert_eq!(range_from_str, Err(IpAddrRangeError::IpAddrRangeParseError));
     }
 
     #[test]
     fn ip_addr_range_from_str_missing_mask_and_slash() {
         let range_from_str = IpAddrRangeV4::from_str("127.0.0.1");
-        assert_eq!(range_from_str, Err(IpAddrRangeError::ParseError));
+        assert_eq!(range_from_str, Err(IpAddrRangeError::IpAddrRangeParseError));
     }
 
     #[test]
     fn ip_addr_range_from_str_missing_address() {
         let range_from_str = IpAddrRangeV4::from_str("/32");
-        assert_eq!(range_from_str, Err(IpAddrRangeError::ParseError));
+        assert_eq!(range_from_str, Err(IpAddrRangeError::IpAddrRangeParseError));
     }
 
     #[test]

@@ -71,14 +71,17 @@ impl fmt::Display for IpAddrRangeV6 {
 impl FromStr for IpAddrRangeV6 {
     type Err = IpAddrRangeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let split_point = s.rfind('/').ok_or(IpAddrRangeError::ParseError)?;
+        let split_point = s.rfind('/').ok_or(IpAddrRangeError::IpAddrRangeParseError)?;
         let address_str = &s[..split_point];
         let mask_str = &s[split_point + 1..];
+        if address_str.len() == 0 || mask_str.len() == 0 {
+            return Err(IpAddrRangeError::IpAddrRangeParseError);
+        }
 
         let network_address = Ipv6Addr::from_str(address_str)?;
         let cidr = u8::from_str(mask_str)?;
         if cidr > 128 {
-            return Err(IpAddrRangeError::ParseError);
+            return Err(IpAddrRangeError::InvalidCidr(cidr));
         }
 
         Ok(IpAddrRangeV6::new(network_address, cidr))

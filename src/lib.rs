@@ -1,7 +1,9 @@
 #![feature(i128_type)]
 #![feature(test)]
+#![allow(unused_features)]
 
 extern crate log;
+#[cfg(test)]
 extern crate test;
 
 mod iprange;
