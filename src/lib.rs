@@ -2,7 +2,7 @@
 #![feature(test)]
 
 extern crate log;
-    extern crate test;
+extern crate test;
 
 mod iprange;
 pub use iprange::{IpAddrRange, IpAddrRangeError};

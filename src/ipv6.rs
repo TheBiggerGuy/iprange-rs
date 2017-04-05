@@ -71,14 +71,16 @@ impl fmt::Display for IpAddrRangeV6 {
 impl FromStr for IpAddrRangeV6 {
     type Err = IpAddrRangeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let split_point = s.find('/').ok_or(IpAddrRangeError::ParseError)?;
-        let (address_str, _) = s.split_at(split_point);
-        let (_, mask_str) = s.split_at(split_point + 1);
+        let split_point = s.rfind('/').ok_or(IpAddrRangeError::ParseError)?;
+        let address_str = &s[..split_point];
+        let mask_str = &s[split_point + 1..];
+
         let network_address = Ipv6Addr::from_str(address_str)?;
         let cidr = u8::from_str(mask_str)?;
         if cidr > 128 {
             return Err(IpAddrRangeError::ParseError);
         }
+
         Ok(IpAddrRangeV6::new(network_address, cidr))
     }
 }
@@ -87,6 +89,8 @@ impl FromStr for IpAddrRangeV6 {
 mod tests {
     use std::net::{IpAddr, Ipv6Addr};
     use std::str::FromStr;
+
+    use test::Bencher;
 
     use iprange::IpAddrRange;
 
@@ -183,5 +187,10 @@ mod tests {
     fn from_str_invalid_empty_str() {
         let from_str = IpAddrRangeV6::from_str("");
         assert!(from_str.is_err());
+    }
+
+    #[bench]
+    fn bench_from_str(b: &mut Bencher) {
+        b.iter(|| IpAddrRangeV6::from_str("2001::1/24"));
     }
 }

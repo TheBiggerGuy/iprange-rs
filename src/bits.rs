@@ -1,5 +1,3 @@
-extern crate test;
-
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 pub fn ipv4_to_u32(ip: &Ipv4Addr) -> u32 {
@@ -50,8 +48,6 @@ pub fn prefix_mask_u128(leading_zeros: u8) -> u128 {
 
 #[cfg(test)]
 mod tests {
-    extern crate env_logger;
-
     use std::net::{Ipv4Addr, Ipv6Addr};
     use std::str::FromStr;
 

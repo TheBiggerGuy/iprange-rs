@@ -72,9 +72,10 @@ impl fmt::Display for IpAddrRange {
 impl FromStr for IpAddrRange {
     type Err = IpAddrRangeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let split_point = s.find('/').ok_or(IpAddrRangeError::ParseError)?;
-        let (address_str, _) = s.split_at(split_point);
-        let (_, mask_str) = s.split_at(split_point + 1);
+        let split_point = s.rfind('/').ok_or(IpAddrRangeError::ParseError)?;
+        let address_str = &s[..split_point];
+        let mask_str = &s[split_point + 1..];
+
         let network_address = IpAddr::from_str(address_str)?;
         let cidr = u8::from_str(mask_str)?;
         let max_cidr = match network_address {
@@ -88,6 +89,7 @@ impl FromStr for IpAddrRange {
             IpAddr::V4(ipv4) => IpAddrRange::V4(IpAddrRangeV4::new(ipv4, cidr)),
             IpAddr::V6(ipv6) => IpAddrRange::V6(IpAddrRangeV6::new(ipv6, cidr)),
         };
+
         Ok(range)
     }
 }
@@ -96,6 +98,8 @@ impl FromStr for IpAddrRange {
 mod tests {
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
     use std::str::FromStr;
+
+    use test::Bencher;
 
     use super::*;
 
@@ -176,5 +180,11 @@ mod tests {
     fn from_str_invalid() {
         let from_str = IpAddrRange::from_str("not_and_ip/not_a_cidr");
         assert!(from_str.is_err());
+    }
+
+    #[bench]
+    fn bench_from_str(b: &mut Bencher) {
+        b.iter(|| IpAddrRange::from_str("127.0.0.1/24"));
+        b.iter(|| IpAddrRange::from_str("2001::1/24"));
     }
 }
