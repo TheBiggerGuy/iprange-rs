@@ -8,7 +8,7 @@ use std::error::Error;
 use ipv4::IpAddrRangeV4;
 use ipv6::IpAddrRangeV6;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum IpAddrRangeError {
     MixedIpVersions,
     IpAddrParseError(AddrParseError),
@@ -57,15 +57,38 @@ impl From<ParseIntError> for IpAddrRangeError {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// An IP address range, either an IPv4 or IPv6 address.
+///
+/// # Examples
+///
+/// Constructing an IPv4 address range:
+///
+/// ```
+/// use std::net::Ipv4Addr;
+/// use iprange::{IpAddrRange, IpAddrRangeV4};
+///
+/// IpAddrRange::V4(IpAddrRangeV4::new(Ipv4Addr::new(127, 0, 0, 0), 24));
+/// ```
+///
+/// Constructing an IPv6 address:
+///
+/// ```
+/// use std::net::Ipv6Addr;
+/// use iprange::{IpAddrRange, IpAddrRangeV6};
+///
+/// IpAddrRange::V6(IpAddrRangeV6::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0), 64));
+///
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub enum IpAddrRange {
+    /// Representation of an IPv4 address range.
     V4(IpAddrRangeV4),
+    /// Representation of an IPv6 address range.
     V6(IpAddrRangeV6),
 }
 
 impl IpAddrRange {
-    pub fn from_range(start: IpAddr, end: IpAddr) -> Result<IpAddrRange, IpAddrRangeError> {
-        match (start, end) {
+    pub fn from_range(network_address: IpAddr, broadcast_address: IpAddr) -> Result<IpAddrRange, IpAddrRangeError> {
+        match (network_address, broadcast_address) {
             (IpAddr::V4(startv4), IpAddr::V4(endv4)) => {
                 Ok(IpAddrRange::V4(IpAddrRangeV4::from_range(startv4, endv4)?))
             }
@@ -76,6 +99,7 @@ impl IpAddrRange {
         }
     }
 
+    /// Returns true if this address range is a valid IPv4 range, false if it's a valid IPv6 range.
     pub fn is_ipv4(&self) -> bool {
         match *self {
             IpAddrRange::V4(_) => true,
@@ -83,6 +107,7 @@ impl IpAddrRange {
         }
     }
 
+    /// Returns true if this address range is a valid IPv6 range, false if it's a valid IPv4 range.
     pub fn is_ipv6(&self) -> bool {
         match *self {
             IpAddrRange::V4(_) => false,

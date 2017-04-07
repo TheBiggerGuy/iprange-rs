@@ -6,7 +6,8 @@ use std::str::FromStr;
 use iprange::IpAddrRangeError;
 use bits::{ipv4_to_u32, number_of_common_prefix_bits_u32, prefix_mask_u32};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// Representation of an IPv4 address range.
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub struct IpAddrRangeV4 {
     network_address: Ipv4Addr,
     cidr: u8,
