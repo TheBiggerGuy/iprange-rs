@@ -87,7 +87,9 @@ pub enum IpAddrRange {
 }
 
 impl IpAddrRange {
-    pub fn from_range(network_address: IpAddr, broadcast_address: IpAddr) -> Result<IpAddrRange, IpAddrRangeError> {
+    pub fn from_range(network_address: IpAddr,
+                      broadcast_address: IpAddr)
+                      -> Result<IpAddrRange, IpAddrRangeError> {
         match (network_address, broadcast_address) {
             (IpAddr::V4(startv4), IpAddr::V4(endv4)) => {
                 Ok(IpAddrRange::V4(IpAddrRangeV4::from_range(startv4, endv4)?))
