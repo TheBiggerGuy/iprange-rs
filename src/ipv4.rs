@@ -73,7 +73,8 @@ impl fmt::Display for IpAddrRangeV4 {
 impl FromStr for IpAddrRangeV4 {
     type Err = IpAddrRangeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let split_point = s.rfind('/').ok_or(IpAddrRangeError::IpAddrRangeParseError)?;
+        let split_point = s.rfind('/')
+            .ok_or(IpAddrRangeError::IpAddrRangeParseError)?;
         let address_str = &s[..split_point];
         let mask_str = &s[split_point + 1..];
         if address_str.len() == 0 || mask_str.len() == 0 {
