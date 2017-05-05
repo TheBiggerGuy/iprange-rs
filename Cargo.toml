@@ -10,6 +10,7 @@ default = []
 
 [dependencies]
 log = "0.3.x"
+clippy = {version = "*", optional = true}
 
 [dev-dependencies]
 env_logger = "0.4.x"
